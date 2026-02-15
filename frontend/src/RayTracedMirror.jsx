@@ -15,6 +15,13 @@ export default function RayTracedMirror({
   width = 640,
   height = 480
 }) {
+  console.log('[RayTracedMirror] Component rendering/mounting with props:', {
+    hasVideoRef: !!videoRef,
+    numCurveSegments: curveSegments?.length,
+    mirrorDist, mirrorHalfWidth, mirrorHalfHeight,
+    width, height
+  });
+  
   const canvasRef = useRef(null);
   const glRef = useRef(null);
   const textureRef = useRef(null);
@@ -22,8 +29,13 @@ export default function RayTracedMirror({
 
   // Initialize WebGL and shaders
   useEffect(() => {
+    console.log('[RayTracedMirror] Starting WebGL initialization');
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('[RayTracedMirror] Canvas ref is null');
+      return;
+    }
+    console.log('[RayTracedMirror] Canvas found:', canvas.width, 'x', canvas.height);
 
     const gl = canvas.getContext('webgl2', {
       alpha: false,
@@ -33,10 +45,15 @@ export default function RayTracedMirror({
     });
 
     if (!gl) {
-      console.error('WebGL not supported for ray-traced output');
-      return;
+      console.error('[RayTracedMirror] WebGL2 not supported, trying WebGL1');
+      const gl1 = canvas.getContext('webgl');
+      if (!gl1) {
+        console.error('[RayTracedMirror] WebGL not supported at all');
+        return;
+      }
     }
 
+    console.log('[RayTracedMirror] WebGL context obtained');
     glRef.current = gl;
 
     // Create texture to hold the webcam input for ray tracing
@@ -49,34 +66,40 @@ export default function RayTracedMirror({
     textureRef.current = texture;
 
     // Compile shaders
+    console.log('[RayTracedMirror] Compiling vertex shader, source length:', vertexShaderSource?.length);
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vertexShader, vertexShaderSource);
     gl.compileShader(vertexShader);
     
     if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-      console.error('Vertex shader compilation error:', gl.getShaderInfoLog(vertexShader));
+      console.error('[RayTracedMirror] Vertex shader compilation error:', gl.getShaderInfoLog(vertexShader));
       return;
     }
+    console.log('[RayTracedMirror] Vertex shader compiled successfully');
 
+    console.log('[RayTracedMirror] Compiling fragment shader, source length:', fragmentShaderSource?.length);
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
     gl.shaderSource(fragmentShader, fragmentShaderSource);
     gl.compileShader(fragmentShader);
     
     if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-      console.error('Fragment shader compilation error:', gl.getShaderInfoLog(fragmentShader));
+      console.error('[RayTracedMirror] Fragment shader compilation error:', gl.getShaderInfoLog(fragmentShader));
       return;
     }
+    console.log('[RayTracedMirror] Fragment shader compiled successfully');
 
     // Create program
+    console.log('[RayTracedMirror] Linking shader program');
     const program = gl.createProgram();
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
 
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.error('Shader program link error:', gl.getProgramInfoLog(program));
+      console.error('[RayTracedMirror] Shader program link error:', gl.getProgramInfoLog(program));
       return;
     }
+    console.log('[RayTracedMirror] Shader program linked successfully');
 
     shaderProgramRef.current = program;
 
@@ -93,21 +116,37 @@ export default function RayTracedMirror({
 
     gl.positionBuffer = positionBuffer;
 
-    console.log('WebGL initialized for ray-traced mirror');
+    console.log('[RayTracedMirror] ✓ WebGL initialization complete');
   }, []);
 
   // Render loop
   useEffect(() => {
+    console.log('[RayTracedMirror] Render loop effect triggered');
     const video = videoRef?.current;
     const gl = glRef.current;
     const canvas = canvasRef.current;
     const texture = textureRef.current;
     const program = shaderProgramRef.current;
 
-    if (!video || !gl || !canvas || !texture || !program) return;
+    console.log('[RayTracedMirror] Render refs check:', {
+      hasVideo: !!video,
+      hasGL: !!gl,
+      hasCanvas: !!canvas,
+      hasTexture: !!texture,
+      hasProgram: !!program,
+      videoReady: video?.readyState,
+      videoWidth: video?.videoWidth,
+      videoHeight: video?.videoHeight
+    });
+
+    if (!video || !gl || !canvas || !texture || !program) {
+      console.warn('[RayTracedMirror] Missing required refs, cannot start render loop');
+      return;
+    }
 
     // Convert Bézier control points to polynomial coefficients for piecewise curve
     const createSegmentsFromControlPoints = () => {
+      console.log('[RayTracedMirror] Converting curve segments:', curveSegments);
       // Helper function to convert a single Bezier segment to polynomial coefficients
       const bezierToPolynomial = (yMin, yMax, z0, z1, z2) => {
         const yRange = yMax - yMin;
@@ -135,15 +174,26 @@ export default function RayTracedMirror({
       };
       
       // Convert all curve segments from Bezier to polynomial form
-      return curveSegments.map(seg => 
+      const result = curveSegments.map(seg => 
         bezierToPolynomial(seg.yMin, seg.yMax, seg.z0, seg.z1, seg.z2)
       );
+      console.log('[RayTracedMirror] Converted segments:', result);
+      return result;
     };
 
     let animationFrameId;
+    let frameCount = 0;
     
     const render = () => {
+      frameCount++;
+      if (frameCount === 1 || frameCount % 60 === 0) {
+        console.log('[RayTracedMirror] Render frame', frameCount, 'video:', video.videoWidth, 'x', video.videoHeight);
+      }
+      
       if (video.videoWidth === 0 || video.videoHeight === 0) {
+        if (frameCount < 5) {
+          console.log('[RayTracedMirror] Video not ready yet, waiting...');
+        }
         animationFrameId = requestAnimationFrame(render);
         return;
       }
@@ -153,6 +203,7 @@ export default function RayTracedMirror({
         canvas.width = width;
         canvas.height = height;
         gl.viewport(0, 0, canvas.width, canvas.height);
+        console.log('[RayTracedMirror] Canvas resized to', width, 'x', height);
       }
 
       // Upload webcam frame to texture
@@ -167,20 +218,44 @@ export default function RayTracedMirror({
       gl.enableVertexAttribArray(aPosition);
       gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
       
+      if (frameCount === 1) {
+        console.log('[RayTracedMirror] Attribute location a_position:', aPosition);
+      }
+      
       // Set uniforms
       const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
       if (resolutionLoc) {
         gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
       }
       
+      if (frameCount === 1) {
+        console.log('[RayTracedMirror] Setting uniforms - resolution:', canvas.width, canvas.height);
+        console.log('[RayTracedMirror] Mirror parameters:', {
+          mirrorDist, mirrorHalfWidth, mirrorHalfHeight,
+          imagePlaneDist, imageSizeX, imageSizeY, fov
+        });
+      }
+      
       // Set up bezier curve segments from control points
       const segments = createSegmentsFromControlPoints();
+      
+      if (frameCount === 1) {
+        console.log('[RayTracedMirror] Polynomial segments for shader:', segments);
+        console.log('[RayTracedMirror] Number of segments:', segments.length);
+        if (segments.length > 16) {
+          console.warn('[RayTracedMirror] WARNING: Too many segments! Shader supports max 16, got', segments.length, '- truncating');
+        }
+      }
+      
+      // Limit to 16 segments (shader MAX_SEGMENTS)
+      const limitedSegments = segments.slice(0, 16);
+      
       const segmentData = new Float32Array(16 * 4); // MAX_SEGMENTS = 16, vec4 per segment
-      for (let i = 0; i < segments.length; i++) {
-        segmentData[i * 4 + 0] = segments[i].a;
-        segmentData[i * 4 + 1] = segments[i].b;
-        segmentData[i * 4 + 2] = segments[i].c;
-        segmentData[i * 4 + 3] = segments[i].yMin;
+      for (let i = 0; i < limitedSegments.length; i++) {
+        segmentData[i * 4 + 0] = limitedSegments[i].a;
+        segmentData[i * 4 + 1] = limitedSegments[i].b;
+        segmentData[i * 4 + 2] = limitedSegments[i].c;
+        segmentData[i * 4 + 3] = limitedSegments[i].yMin;
       }
       
       // Upload segments as uniform array
@@ -196,7 +271,7 @@ export default function RayTracedMirror({
         }
       }
       
-      gl.uniform1i(gl.getUniformLocation(program, 'u_numSegments'), segments.length);
+      gl.uniform1i(gl.getUniformLocation(program, 'u_numSegments'), limitedSegments.length);
       gl.uniform1f(gl.getUniformLocation(program, 'u_mirrorDist'), mirrorDist);
       gl.uniform1f(gl.getUniformLocation(program, 'u_mirrorHalfWidth'), mirrorHalfWidth);
       gl.uniform1f(gl.getUniformLocation(program, 'u_mirrorHalfHeight'), mirrorHalfHeight);
@@ -213,13 +288,24 @@ export default function RayTracedMirror({
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      
+      if (frameCount === 1) {
+        console.log('[RayTracedMirror] \u2713 First frame drawn');
+        // Check for any GL errors
+        const err = gl.getError();
+        if (err !== gl.NO_ERROR) {
+          console.error('[RayTracedMirror] WebGL error after draw:', err);
+        }
+      }
 
       animationFrameId = requestAnimationFrame(render);
     };
     
+    console.log('[RayTracedMirror] Starting render loop...');
     render();
     
     return () => {
+      console.log('[RayTracedMirror] Stopping render loop');
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
@@ -231,7 +317,8 @@ export default function RayTracedMirror({
       ref={canvasRef} 
       width={width} 
       height={height}
-      style={{ border: '2px solid #ccc', borderRadius: '8px' }}
+      className="w-full h-auto max-h-full object-contain rounded-lg"
+      style={{ border: '2px solid #ccc' }}
     />
   );
 }

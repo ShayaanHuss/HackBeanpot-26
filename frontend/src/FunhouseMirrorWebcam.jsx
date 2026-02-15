@@ -1,10 +1,80 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import RayTracedMirror from './RayTracedMirror';
+
+// Convert MirrorCurveDesigner data to RayTracedMirror format
+const convertCurveDataToSegments = (curveData) => {
+  console.log('[convertCurveDataToSegments] Input curveData:', curveData);
+  
+  if (!curveData || !curveData.lineSegments || curveData.lineSegments.length === 0) {
+    // Default to a flat mirror - normalized coordinates
+    const defaultSegment = [{
+      yMin: -0.4,  // Physical coordinates matching mirrorHalfHeight
+      yMax: 0.4,
+      z0: 0.0,     // At the mirror plane
+      z1: 0.0,
+      z2: 0.0
+    }];
+    console.log('[convertCurveDataToSegments] Using default flat mirror:', defaultSegment);
+    return defaultSegment;
+  }
+
+  // Get bounds from curve data
+  const bounds = curveData.bounds;
+  const canvasHeight = bounds.yBottom - bounds.yTop;  // e.g., 550 - 50 = 500
+  const canvasWidth = bounds.x;  // e.g., 400 (the centerline x position)
+  
+  // Physical dimensions for the shader (matching the mirror parameters)
+  const physicalHalfHeight = 2.0;  // Make mirror much taller
+  const physicalMaxDepth = 1.0;    // Increase max curve depth
+  
+  console.log('[convertCurveDataToSegments] Canvas bounds:', { 
+    yTop: bounds.yTop, 
+    yBottom: bounds.yBottom, 
+    x: bounds.x,
+    canvasHeight 
+  });
+
+  // Convert line segments to Bezier curve segments with coordinate transformation
+  const result = curveData.lineSegments.map(seg => {
+    // Convert y coordinates from canvas pixels to physical coordinates [-0.4, 0.4]
+    const y1Physical = ((seg.y1 - bounds.yTop) / canvasHeight) * (2 * physicalHalfHeight) - physicalHalfHeight;
+    const y2Physical = ((seg.y2 - bounds.yTop) / canvasHeight) * (2 * physicalHalfHeight) - physicalHalfHeight;
+    
+    const yMin = Math.min(y1Physical, y2Physical);
+    const yMax = Math.max(y1Physical, y2Physical);
+    
+    // Convert x coordinates from canvas pixels to physical depth
+    // Pixels to the left of centerline (x < bounds.x) represent curve toward viewer (negative z)
+    // Negate so curves toward viewer are negative (closer to camera)
+    const x1Depth = -((bounds.x - seg.x1) / canvasWidth * physicalMaxDepth);
+    const x2Depth = -((bounds.x - seg.x2) / canvasWidth * physicalMaxDepth);
+    
+    let z0, z2;
+    // Handle orientation: ensure z0 corresponds to yMin and z2 to yMax
+    if (y1Physical <= y2Physical) {
+      z0 = x1Depth;
+      z2 = x2Depth;
+    } else {
+      z0 = x2Depth;
+      z2 = x1Depth;
+    }
+    
+    // For linear segment, control point is the midpoint
+    const z1 = (z0 + z2) / 2;
+    
+    return { yMin, yMax, z0, z1, z2 };
+  });
+  
+  console.log('[convertCurveDataToSegments] Converted', result.length, 'segments to physical coordinates:', result);
+  return result;
+};
 
 export default function FunhouseMirrorWebcam({ curveData }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [useRayTracing, setUseRayTracing] = useState(false);
   const animationIdRef = useRef(null);
 
   const startCamera = async () => {
@@ -57,56 +127,21 @@ export default function FunhouseMirrorWebcam({ curveData }) {
   const rotateDistortion = () => {
     setRotation(prev => (prev + 90) % 360);
   };
-
+  
+  const toggleRayTracing = () => {
+    console.log('[FunhouseMirrorWebcam] Toggling ray tracing from', useRayTracing, 'to', !useRayTracing);
+    console.log('[FunhouseMirrorWebcam] Video element:', videoRef.current);
+    console.log('[FunhouseMirrorWebcam] Video ready state:', videoRef.current?.readyState);
+    console.log('[FunhouseMirrorWebcam] Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+    setUseRayTracing(!useRayTracing);
+  };
+  
+  // Log when ray tracing mode changes
   useEffect(() => {
-    if (!isActive) {
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-        animationIdRef.current = null;
-      }
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    if (!video || !canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    
-    const render = () => {
-      if (!isActive || !video || video.readyState < video.HAVE_CURRENT_DATA) {
-        animationIdRef.current = requestAnimationFrame(render);
-        return;
-      }
-
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        const hasCurve = curveData && curveData.lineSegments && curveData.lineSegments.length > 0;
-        
-        if (!hasCurve) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        } else {
-          applyDistortion(ctx, video, curveData, rotation);
-        }
-      }
-      
-      animationIdRef.current = requestAnimationFrame(render);
-    };
-    
-    render();
-    
-    return () => {
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-        animationIdRef.current = null;
-      }
-    };
-  }, [isActive, curveData, rotation]);
-
-  const applyDistortion = (ctx, video, curve, rot) => {
+    console.log('[FunhouseMirrorWebcam] Ray tracing mode is now:', useRayTracing);
+  }, [useRayTracing]);
+  
+  const applyDistortion = useCallback((ctx, video, curve, rot) => {
     const w = video.videoWidth;
     const h = video.videoHeight;
     
@@ -213,18 +248,82 @@ export default function FunhouseMirrorWebcam({ curveData }) {
     }
     
     ctx.putImageData(outputData, 0, 0);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isActive) {
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+        animationIdRef.current = null;
+      }
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (!video || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    
+    const render = () => {
+      if (!isActive || !video || video.readyState < video.HAVE_CURRENT_DATA) {
+        animationIdRef.current = requestAnimationFrame(render);
+        return;
+      }
+
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const hasCurve = curveData && curveData.lineSegments && curveData.lineSegments.length > 0;
+        
+        if (!hasCurve) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } else {
+          applyDistortion(ctx, video, curveData, rotation);
+        }
+      }
+      
+      animationIdRef.current = requestAnimationFrame(render);
+    };
+    
+    render();
+    
+    return () => {
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+        animationIdRef.current = null;
+      }
+    };
+  }, [isActive, curveData, rotation, applyDistortion]);
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-4">
       <video ref={videoRef} autoPlay playsInline muted style={{display: 'none'}} />
       
-      <canvas 
-        ref={canvasRef} 
-        width="640" 
-        height="480" 
-        className="w-full h-auto max-h-full object-contain rounded-lg"
-      />
+      {useRayTracing ? (
+        <RayTracedMirror
+          videoRef={videoRef}
+          curveSegments={convertCurveDataToSegments(curveData)}
+          mirrorDist={3.5}
+          mirrorHalfWidth={2.0}
+          mirrorHalfHeight={2.0}
+          imagePlaneDist={1.0}
+          imageSizeX={1.6}
+          imageSizeY={1.2}
+          fov={60.0}
+          width={640}
+          height={480}
+        />
+      ) : (
+        <canvas 
+          ref={canvasRef} 
+          width="640" 
+          height="480" 
+          className="w-full h-auto max-h-full object-contain rounded-lg"
+        />
+      )}
       
       <div className="flex gap-3 mt-4">
         <button 
@@ -243,17 +342,25 @@ export default function FunhouseMirrorWebcam({ curveData }) {
         </button>
         <button 
           onClick={rotateDistortion} 
-          disabled={!curveData}
+          disabled={!curveData || useRayTracing}
           className="px-6 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-colors"
         >
           Rotate 90°
+        </button>
+        <button 
+          onClick={toggleRayTracing} 
+          disabled={!isActive}
+          className="px-6 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-colors"
+        >
+          {useRayTracing ? 'Classic Mode' : 'Ray Traced'}
         </button>
       </div>
       
       <p className="mt-3 text-sm text-gray-300">
         Status: <span className="font-semibold">{isActive ? 'Active' : 'Stopped'}</span> | 
         Curve: <span className="font-semibold">{curveData ? 'Loaded' : 'None'}</span> | 
-        Rotation: <span className="font-semibold">{rotation}°</span>
+        Rotation: <span className="font-semibold">{rotation}°</span> | 
+        Mode: <span className="font-semibold">{useRayTracing ? 'Ray Traced' : 'Classic'}</span>
       </p>
     </div>
   );
