@@ -185,38 +185,6 @@ export default function MirrorDesigner({ onCurveChange }) {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Draw quadratic Bezier approximation overlay
-      if (all.length > 1) {
-        const quadratics = splineToQuadraticBezier(all, 0.25);
-        
-        // Draw the quadratic curves in semi-transparent orange/amber
-        ctx.strokeStyle = 'rgba(251, 146, 60, 0.7)'; // Orange-400
-        ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]);
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(251, 146, 60, 0.5)';
-        ctx.beginPath();
-        
-        if (quadratics.length > 0) {
-          ctx.moveTo(quadratics[0].start.x, quadratics[0].start.y);
-          for (const quad of quadratics) {
-            ctx.quadraticCurveTo(quad.cp.x, quad.cp.y, quad.end.x, quad.end.y);
-          }
-        }
-        
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.shadowBlur = 0;
-        
-        // Draw quadratic control points as small orange dots
-        ctx.fillStyle = 'rgba(251, 146, 60, 0.6)';
-        for (const quad of quadratics) {
-          ctx.beginPath();
-          ctx.arc(quad.cp.x, quad.cp.y, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
       // Draw control points as chrome spheres
       points.forEach((p) => {
         // Subtle connection line
@@ -499,22 +467,6 @@ export default function MirrorDesigner({ onCurveChange }) {
           );
         })}
       </div>
-      
-      {/* Legend */}
-      {points.length > 0 && (
-        <div className="absolute top-4 left-4 z-20 bg-white/80 backdrop-blur-sm rounded-lg p-3 shadow-lg text-xs">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-0.5 bg-slate-600" style={{ boxShadow: '0 0 4px rgba(148, 163, 184, 0.8)' }}></div>
-            <span className="text-slate-700 font-medium">Catmull-Rom Spline</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-0.5 bg-orange-400" style={{ 
-              backgroundImage: 'repeating-linear-gradient(90deg, #fb923c 0px, #fb923c 4px, transparent 4px, transparent 6px)'
-            }}></div>
-            <span className="text-slate-700 font-medium">Quadratic Bézier</span>
-          </div>
-        </div>
-      )}
       
       <canvas
         ref={canvasRef}

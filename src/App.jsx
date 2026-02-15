@@ -90,8 +90,10 @@ export default function App() {
       {/* Toggle Button */}
       <Button
         onClick={() => setIsDay(!isDay)}
-        className="absolute z-20 top-5 right-5 bg-white/80! text-black! shadow-md! hover:bg-white!"
-        variant="outline"
+        className={`absolute z-20 top-5 right-5 ${
+          isDay ? "bg-black/20! border-black/40! text-white! hover:bg-black/30!" : ""
+        }`}
+        variant="ghost"
       >
         {isDay ? "Switch to Night" : "Switch to Day"}
       </Button>
@@ -416,8 +418,28 @@ export default function App() {
       </svg>
 
       {/* Floating Camera Box */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen gap-6 py-32">
-        <div className="w-[600px] aspect-video bg-white rounded-3xl shadow-2xl border-8 border-red-500">
+      <div className="relative z-10 flex flex-col items-center min-h-screen gap-6 pt-10 pb-16">
+        {/* Header */}
+        <div className="w-full text-center">
+          <h1
+            className={`text-6xl tracking-[0.4em] font-Circus text-shadow-lg ${
+              isDay ? "text-pink-600 drop-shadow-[0_0_25px_rgba(255,255,200,0.8)]"
+                      : "text-yellow-300 drop-shadow-[0_0_25px_rgba(255,200,0,0.8)]"
+            }`}
+          >
+            MIRROROR
+          </h1>
+          <p
+            className={`mt-2 tracking-wide text-2xl font-Circus text-shadow-lg ${
+              isDay ? "text-pink-400 drop-shadow-[0_0_20px_rgba(255,255,200,0.7)] text-shadow-lg"
+                      : "text-yellow-100 text-shadow-lg drop-shadow-[0_0_25px_rgba(255,200,0,0.8)]"
+            }`}
+          >
+            STEP RIGHT UP
+          </p>
+        </div>
+
+        <div className="w-[720px] aspect-video bg-white rounded-3xl shadow-2xl border-8 border-red-500">
           <div className="w-full h-full bg-black rounded-2xl flex items-center justify-center text-white relative">
             {!isDone ? (
               <>
@@ -471,26 +493,6 @@ export default function App() {
             </Button>
           </div>
         )}
-      </div>
-
-      {/* Header */}
-      <div className="absolute top-10 w-full text-center z-10">
-        <h1
-          className={`text-6xl tracking-[0.4em] font-Circus text-shadow-lg ${
-            isDay ? "text-pink-600 drop-shadow-[0_0_25px_rgba(255,255,200,0.8)]"
-                    : "text-yellow-300 drop-shadow-[0_0_25px_rgba(255,200,0,0.8)]"
-          }`}
-        >
-          MIRROROR
-        </h1>
-        <p
-          className={`mt-2 tracking-wide text-2xl font-Circus text-shadow-lg ${
-            isDay ? "text-pink-400 drop-shadow-[0_0_20px_rgba(255,255,200,0.7)] text-shadow-lg"
-                    : "text-yellow-100 text-shadow-lg drop-shadow-[0_0_25px_rgba(255,200,0,0.8)]"
-          }`}
-        >
-          STEP RIGHT UP
-        </p>
       </div>
     </div>
   );

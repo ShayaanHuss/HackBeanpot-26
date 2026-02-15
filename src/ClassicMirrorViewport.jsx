@@ -8,7 +8,10 @@ export default function ClassicMirrorViewport({ videoRef, curveData, rotation, i
     const w = video.videoWidth;
     const h = video.videoHeight;
     
-    ctx.drawImage(video, 0, 0, w, h);
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, -w, 0, w, h);
+    ctx.restore();
     const imageData = ctx.getImageData(0, 0, w, h);
     const outputData = ctx.createImageData(w, h);
     
@@ -142,7 +145,10 @@ export default function ClassicMirrorViewport({ videoRef, curveData, rotation, i
         const hasCurve = curveData && curveData.lineSegments && curveData.lineSegments.length > 0;
         
         if (!hasCurve) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+          ctx.restore();
         } else {
           applyDistortion(ctx, video, curveData, rotation);
         }

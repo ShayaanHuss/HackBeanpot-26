@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import vertexShaderSource from './shaders/curved_mirror_vertex.glsl?raw';
 import fragmentShaderSource from './shaders/square_mirror_fragment_asym.glsl?raw';
 
-const BACKGROUND_COLOR = [1.0, 1.0, 1.0];
+const BACKGROUND_COLOR = [0.0, 0.0, 0.0];
 
 export default function RayTracedMirror({
   videoRef,
@@ -321,7 +321,6 @@ export default function RayTracedMirror({
       width={width} 
       height={height}
       className="w-full h-auto max-h-full object-contain rounded-lg"
-      style={{ border: '2px solid #ccc' }}
     />
   );
 }
