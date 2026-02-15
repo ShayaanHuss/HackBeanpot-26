@@ -368,7 +368,7 @@ export default function HybridMirrorBezier({ onCurveChange }) {
     // Concave mirror - curves inward (to the right)
     // Strong curvature to create focal point effect that flips the image
     const newPoint = {
-      x: LINE_X + 195, // Far right for dramatic curvature
+      x: LINE_X + 120, // Far right for dramatic curvature
       y: LINE_TOP + (LINE_BOTTOM - LINE_TOP) / 2, // Middle vertically
       id: nextIdRef.current++
     };
