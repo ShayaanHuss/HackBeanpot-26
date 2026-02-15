@@ -344,8 +344,8 @@ export default function App() {
       </svg>
 
       {/* Floating Camera Box */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen">
-        <div className="w-[600px] aspect-video bg-white rounded-3xl shadow-2xl border-8 border-red-500">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen gap-6 py-32">
+        <div className="w-[400px] aspect-video bg-white rounded-3xl shadow-2xl border-8 border-red-500">
           <div className="w-full h-full bg-black rounded-2xl flex items-center justify-center text-white relative">
             {!isDone ? (
               <>
@@ -358,18 +358,20 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <>
-                <FunhouseMirrorWebcam curveData={mirrorCurve} />
-                <button
-                  onClick={() => setIsDone(false)}
-                  className="absolute bottom-4 right-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg z-30"
-                >
-                  Back to Designer
-                </button>
-              </>
+              <FunhouseMirrorWebcam curveData={mirrorCurve} />
             )}
           </div>
         </div>
+        
+        {/* Back button outside the box when in webcam mode */}
+        {isDone && (
+          <button
+            onClick={() => setIsDone(false)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg text-lg"
+          >
+            ← Back to Designer
+          </button>
+        )}
       </div>
 
       {/* Header */}

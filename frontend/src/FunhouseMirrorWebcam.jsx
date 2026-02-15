@@ -22,7 +22,20 @@ export default function FunhouseMirrorWebcam({ curveData }) {
         };
       }
     } catch (err) {
-      alert('Camera error: ' + err.message);
+      console.error('Camera error:', err);
+      let errorMessage = 'Camera error: ';
+      
+      if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage += 'No camera found. Please connect a camera and try again.';
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage += 'Camera access denied. Please allow camera permissions in your browser settings.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage += 'Camera is already in use by another application. Please close other apps using the camera.';
+      } else {
+        errorMessage += err.message;
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -203,16 +216,45 @@ export default function FunhouseMirrorWebcam({ curveData }) {
   };
 
   return (
-    <div>
-      <h2>Funhouse Mirror</h2>
+    <div className="w-full h-full flex flex-col items-center justify-center p-4">
       <video ref={videoRef} autoPlay playsInline muted style={{display: 'none'}} />
-      <canvas ref={canvasRef} width="640" height="480" style={{border: '1px solid black'}} />
-      <div>
-        <button onClick={startCamera} disabled={isActive}>Start Camera</button>
-        <button onClick={stopCamera} disabled={!isActive}>Stop Camera</button>
-        <button onClick={rotateDistortion} disabled={!curveData}>Rotate 90°</button>
+      
+      <canvas 
+        ref={canvasRef} 
+        width="640" 
+        height="480" 
+        className="w-full h-auto max-h-full object-contain rounded-lg"
+      />
+      
+      <div className="flex gap-3 mt-4">
+        <button 
+          onClick={startCamera} 
+          disabled={isActive}
+          className="px-6 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-colors"
+        >
+          Start Camera
+        </button>
+        <button 
+          onClick={stopCamera} 
+          disabled={!isActive}
+          className="px-6 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-colors"
+        >
+          Stop Camera
+        </button>
+        <button 
+          onClick={rotateDistortion} 
+          disabled={!curveData}
+          className="px-6 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-colors"
+        >
+          Rotate 90°
+        </button>
       </div>
-      <p>Status: {isActive ? 'Active' : 'Stopped'} | Curve: {curveData ? 'Loaded' : 'None'} | Rotation: {rotation}°</p>
+      
+      <p className="mt-3 text-sm text-gray-300">
+        Status: <span className="font-semibold">{isActive ? 'Active' : 'Stopped'}</span> | 
+        Curve: <span className="font-semibold">{curveData ? 'Loaded' : 'None'}</span> | 
+        Rotation: <span className="font-semibold">{rotation}°</span>
+      </p>
     </div>
   );
 }
