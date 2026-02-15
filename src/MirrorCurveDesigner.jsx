@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { splineToQuadraticBezier } from './splineToQuadraticBezier.js';
+import { useMirrorCurve } from './contexts/MirrorCurveContext';
 
 export default function MirrorDesigner({ onCurveChange }) {
   const canvasRef = useRef(null);
-  const [points, setPoints] = useState([]);
+  const { points, setPoints } = useMirrorCurve();
   const [middlePoint, setMiddlePoint] = useState({ x: 400, y: 300 });
   const [draggingMiddle, setDraggingMiddle] = useState(false);
   const [draggingPoint, setDraggingPoint] = useState(null);

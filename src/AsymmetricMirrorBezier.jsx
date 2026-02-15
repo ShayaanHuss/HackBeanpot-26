@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useMirrorCurve } from './contexts/MirrorCurveContext';
 
 /**
  * Convert user pass-through points to smooth quadratic Bezier curves with C1 continuity
@@ -122,9 +123,8 @@ function evaluateQuadraticBezier(bezier, t) {
 
 export default function AsymmetricMirrorBezier({ onCurveChange }) {
   const canvasRef = useRef(null);
-  const [points, setPoints] = useState([]);
+  const { points, setPoints, nextIdRef } = useMirrorCurve();
   const [draggingPointId, setDraggingPointId] = useState(null);
-  const nextIdRef = useRef(0);
 
   const WIDTH = 800;
   const HEIGHT = 600;

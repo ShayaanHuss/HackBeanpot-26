@@ -1,11 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { splineToQuadraticBezier } from './splineToQuadraticBezier.js';
+import { useMirrorCurve } from './contexts/MirrorCurveContext';
 
 export default function AsymmetricMirrorCurveDesigner({ onCurveChange }) {
   const canvasRef = useRef(null);
-  const [points, setPoints] = useState([]);
+  const { points, setPoints, nextIdRef } = useMirrorCurve();
   const [draggingPointId, setDraggingPointId] = useState(null);
-  const nextIdRef = useRef(0);
 
   const WIDTH = 800;
   const HEIGHT = 600;
